@@ -6,17 +6,31 @@ import { Trash2, Shield, ShieldAlert, User, AlertCircle, Lock, Unlock, Ban } fro
 
 export default async function UsersAdmin() {
   
+  // 1. בדיקה האם האדמין בכלל נוצר
+  if (!supabaseAdmin) {
+    return (
+      <div className="p-10 text-center text-red-600 bg-red-50 rounded-xl border border-red-200">
+        <h3 className="font-bold text-xl">שגיאת קונפיגורציה חמורה</h3>
+        <p className="mt-2">המערכת לא מצליחה לקרוא את מפתח ה-Service Role.</p>
+        <p className="text-sm mt-2 dir-ltr">האם קובץ .env.local קיים? האם הפעלת מחדש את השרת?</p>
+      </div>
+    )
+  }
+
+  // 2. ניסיון שליפה
   const { data: users, error } = await supabaseAdmin
     .from('profiles')
     .select('*')
     .order('created_at', { ascending: false })
 
+  // 3. טיפול בשגיאת שליפה
   if (error) {
     return (
       <div className="p-10 text-center text-red-600 bg-red-50 rounded-xl border border-red-200">
         <AlertCircle className="mx-auto mb-2" />
-        <h3 className="font-bold">שגיאה בטעינת משתמשים</h3>
+        <h3 className="font-bold">שגיאה בטעינת משתמשים מ-Supabase</h3>
         <p className="text-sm dir-ltr text-left mt-2">{error.message}</p>
+        <p className="text-xs mt-2 text-slate-500">קוד שגיאה: {error.code}</p>
       </div>
     )
   }
@@ -64,7 +78,6 @@ export default async function UsersAdmin() {
                   )}
                 </td>
                 <td className="p-4 flex gap-2">
-                  {/* כפתור אדמין */}
                   <form action={toggleAdminStatus}>
                     <input type="hidden" name="userId" value={u.id} />
                     <input type="hidden" name="currentStatus" value={String(u.is_admin)} />
@@ -73,7 +86,6 @@ export default async function UsersAdmin() {
                     </button>
                   </form>
                   
-                  {/* כפתור השעיה/שחרור */}
                   <form action={toggleSuspension}>
                     <input type="hidden" name="userId" value={u.id} />
                     <input type="hidden" name="isSuspended" value={String(u.is_suspended || false)} />
@@ -85,8 +97,7 @@ export default async function UsersAdmin() {
                     </button>
                   </form>
 
-                  {/* כפתור מחיקה */}
-                  <form action={deleteUser} onSubmit={(e) => { if(!confirm('זהירות! מחיקה זו תמחק את כל המידע של המשתמש (פוסטים, פגישות, יומנים) לצמיתות.')) e.preventDefault() }}>
+                  <form action={deleteUser} onSubmit={(e) => { if(!confirm('זהירות! מחיקה סופית.')) e.preventDefault() }}>
                     <input type="hidden" name="userId" value={u.id} />
                     <button className="p-2 hover:bg-red-100 text-slate-400 hover:text-red-600 rounded-lg transition" title="מחיקה מלאה">
                       <Trash2 size={16} />
