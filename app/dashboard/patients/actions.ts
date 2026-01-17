@@ -5,7 +5,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
-// 1. יצירת מטופל חדש (אדמין)
+// 1. יצירת מטופל חדש
 export async function createPatient(formData: FormData) {
   if (!supabaseAdmin) return { error: 'Server config error' }
 

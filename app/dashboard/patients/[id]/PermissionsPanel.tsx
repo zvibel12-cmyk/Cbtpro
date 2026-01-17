@@ -1,6 +1,7 @@
 'use client'
 
-import { updateJournalPermissions } from '../../actions'
+// תיקון קריטי: נתיב אבסולוטי
+import { updateJournalPermissions } from '@/app/dashboard/patients/actions'
 
 export default function PermissionsPanel({ patientId, settings }: { patientId: string, settings: any }) {
   return (

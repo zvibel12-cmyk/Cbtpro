@@ -1,7 +1,9 @@
 'use client'
-import { saveSessionNote } from '../../../../actions'
+
+// תיקון קריטי: נתיב אבסולוטי
+import { saveSessionNote } from '@/app/dashboard/patients/actions'
 import { useFormStatus } from 'react-dom'
-import { ArrowRight, Save, FileText } from 'lucide-react'
+import { ArrowRight, Save } from 'lucide-react'
 import Link from 'next/link'
 
 function SubmitBtn() {
