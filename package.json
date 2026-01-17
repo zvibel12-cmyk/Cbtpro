@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "backup": "git add . && git commit -m 'Update: Sat Jan 17 09:27:44 PM IST 2026' && git push"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",
