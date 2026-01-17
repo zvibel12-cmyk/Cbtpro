@@ -1,28 +1,43 @@
-export const dynamic = 'force-dynamic' // חובה!
+export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 import { createClient } from '@/lib/supabase-server'
 import { createComment } from '../actions'
-import { ArrowRight, MessageSquare, Clock, Send } from 'lucide-react'
+import { ArrowRight, MessageSquare, Clock, Send, User } from 'lucide-react'
 import Link from 'next/link'
+import DeleteButton from '../DeleteButton'
 
 export default async function PostPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
   const postId = params.id
 
+  // 1. זיהוי המשתמש הצופה (כדי לדעת אם להציג כפתור מחיקה)
+  const { data: { user } } = await supabase.auth.getUser()
+  const currentUserId = user?.id
+
+  // 2. שליפת הפוסט (ללא join מורכב)
   const { data: post } = await supabase
     .from('forum_posts')
-    .select('*, profiles:author_id(full_name)')
+    .select('*')
     .eq('id', postId)
     .single()
 
+  // 3. שליפת תגובות
   const { data: comments } = await supabase
     .from('forum_comments')
-    .select('*, profiles:author_id(full_name)')
+    .select('*')
     .eq('post_id', postId)
     .order('created_at', { ascending: true })
 
-  if (!post) return <div className="p-10 text-center">הדיון לא נמצא או נמחק</div>
+  if (!post) return (
+    <div className="p-10 text-center">
+      <h2 className="text-xl font-bold text-slate-700">הדיון לא נמצא</h2>
+      <p className="text-slate-500">ייתכן שהוא נמחק או שהקישור שגוי.</p>
+      <Link href="/dashboard/forum" className="text-primary-600 mt-4 block font-bold">חזרה לפורום</Link>
+    </div>
+  )
+
+  const isPostAuthor = currentUserId === post.author_id
 
   return (
     <div className="max-w-4xl mx-auto pb-20 space-y-6">
@@ -30,48 +45,70 @@ export default async function PostPage({ params }: { params: { id: string } }) {
         <ArrowRight size={16} /> חזרה לכל הדיונים
       </Link>
 
-      <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+      {/* אזור הפוסט הראשי */}
+      <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm relative group">
+        
+        {/* כפתור מחיקה לפוסט (מופיע רק לכותב) */}
+        {isPostAuthor && (
+           <div className="absolute top-6 left-6">
+             <DeleteButton type="post" id={post.id} />
+           </div>
+        )}
+
         <div className="flex gap-2 mb-4">
            <span className="bg-blue-50 text-blue-700 text-xs font-bold px-3 py-1 rounded-full border border-blue-100">
-              {post.category}
+              {post.category || 'כללי'}
            </span>
         </div>
+        
         <h1 className="text-3xl font-bold text-slate-800 mb-6">{post.title}</h1>
         <div className="prose max-w-none text-slate-700 leading-relaxed text-lg whitespace-pre-wrap">
           {post.content}
         </div>
         
         <div className="flex items-center gap-3 mt-8 pt-6 border-t border-slate-100">
-           <div className="w-10 h-10 bg-gradient-to-br from-slate-200 to-slate-300 rounded-full flex items-center justify-center text-slate-700 font-bold text-lg">
-              {post.profiles?.full_name?.[0]}
+           <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-400">
+              <User size={20} />
            </div>
            <div>
-              <div className="font-bold text-slate-800 text-sm">{post.profiles?.full_name}</div>
+              <div className="font-bold text-slate-800 text-sm">מחבר הדיון</div>
               <div className="text-xs text-slate-400">{new Date(post.created_at).toLocaleDateString('he-IL')}</div>
            </div>
         </div>
       </div>
 
+      {/* אזור התגובות */}
       <div className="space-y-4">
         <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2 px-2">
            <MessageSquare size={20} className="text-primary-600" /> 
            {comments?.length || 0} תגובות
         </h3>
 
-        {comments?.map((comment: any) => (
-          <div key={comment.id} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex gap-4">
-             <div className="w-8 h-8 bg-primary-50 text-primary-700 rounded-full flex items-center justify-center font-bold text-sm shrink-0">
-                {comment.profiles?.full_name?.[0]}
-             </div>
-             <div className="flex-1 space-y-1">
-                <div className="flex justify-between items-center">
-                   <span className="font-bold text-sm text-slate-800">{comment.profiles?.full_name}</span>
-                   <span className="text-xs text-slate-400">{new Date(comment.created_at).toLocaleDateString()}</span>
-                </div>
-                <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap">{comment.content}</p>
-             </div>
-          </div>
-        ))}
+        {comments?.map((comment: any) => {
+          const isCommentAuthor = currentUserId === comment.author_id
+          
+          return (
+            <div key={comment.id} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex gap-4 group relative">
+               {/* כפתור מחיקה לתגובה */}
+               {isCommentAuthor && (
+                 <div className="absolute top-4 left-4 opacity-0 group-hover:opacity-100 transition">
+                   <DeleteButton type="comment" id={comment.id} postId={post.id} />
+                 </div>
+               )}
+
+               <div className="w-8 h-8 bg-primary-50 text-primary-700 rounded-full flex items-center justify-center font-bold text-sm shrink-0">
+                  <User size={14} />
+               </div>
+               <div className="flex-1 space-y-1">
+                  <div className="flex justify-between items-center">
+                     <span className="font-bold text-sm text-slate-800">משתמש</span>
+                     <span className="text-xs text-slate-400">{new Date(comment.created_at).toLocaleDateString()}</span>
+                  </div>
+                  <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap">{comment.content}</p>
+               </div>
+            </div>
+          )
+        })}
 
         <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 mt-6">
            <h4 className="font-bold text-slate-700 mb-3 text-sm">הוסף תגובה</h4>
