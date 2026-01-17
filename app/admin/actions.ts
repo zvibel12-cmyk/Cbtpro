@@ -2,10 +2,10 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase-server'
-import { supabaseAdmin } from '@/lib/supabaseAdmin' // שימוש במפתח העל
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { redirect } from 'next/navigation'
 
-// בדיקת אבטחה: האם המבקש הוא אדמין?
+// בדיקת אבטחה
 async function ensureAdmin() {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -27,13 +27,19 @@ export async function deleteUser(formData: FormData) {
   await ensureAdmin()
   const userId = formData.get('userId') as string
 
-  // 1. מחיקה מ-Auth (מוחק את המשתמש מהמערכת לגמרי)
-  const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId)
-  
-  if (authError) return { error: authError.message }
-
-  // 2. ניקוי שאריות מטבלאות ציבוריות (אם ה-Cascade לא עבד)
+  // 1. ניקוי עמוק של כל המידע הקשור למשתמש (סנכרון נתונים מלא)
+  await supabaseAdmin.from('forum_posts').delete().eq('author_id', userId)
+  await supabaseAdmin.from('forum_comments').delete().eq('author_id', userId)
+  await supabaseAdmin.from('appointments').delete().eq('patient_id', userId).or(`therapist_id.eq.${userId}`)
+  await supabaseAdmin.from('cbt_journals').delete().eq('patient_id', userId)
+  await supabaseAdmin.from('session_notes').delete().eq('patient_id', userId)
+  await supabaseAdmin.from('patients_mapping').delete().eq('patient_id', userId)
   await supabaseAdmin.from('profiles').delete().eq('id', userId)
+
+  // 2. מחיקה מהמערכת הראשית (Auth)
+  const { error } = await supabaseAdmin.auth.admin.deleteUser(userId)
+  
+  if (error) return { error: error.message }
 
   revalidatePath('/admin/users')
   return { success: true }
@@ -48,26 +54,37 @@ export async function toggleAdminStatus(formData: FormData) {
   revalidatePath('/admin/users')
 }
 
-// --- ניהול פורום ---
+// --- השעיית משתמשים ---
+export async function toggleSuspension(formData: FormData) {
+  await ensureAdmin()
+  const userId = formData.get('userId') as string
+  const isSuspended = formData.get('isSuspended') === 'true'
 
+  if (!isSuspended) {
+    // פעולת השעיה: חסימה ל-100 שנה ועדכון פרופיל
+    await supabaseAdmin.auth.admin.updateUserById(userId, { ban_duration: "876000h" })
+    await supabaseAdmin.from('profiles').update({ is_suspended: true }).eq('id', userId)
+  } else {
+    // ביטול השעיה: הסרת החסימה
+    await supabaseAdmin.auth.admin.updateUserById(userId, { ban_duration: "0" })
+    await supabaseAdmin.from('profiles').update({ is_suspended: false }).eq('id', userId)
+  }
+
+  revalidatePath('/admin/users')
+}
+
+// --- ניהול פורום ---
 export async function adminDeletePost(formData: FormData) {
   await ensureAdmin()
   const postId = formData.get('postId') as string
-  
-  // מחיקה בכוח (ללא בדיקת בעלות)
   await supabaseAdmin.from('forum_posts').delete().eq('id', postId)
   revalidatePath('/admin/forum')
 }
 
-// --- הגדרות מערכת (מחירים) ---
-
+// --- הגדרות ---
 export async function updatePrice(formData: FormData) {
   await ensureAdmin()
   const price = formData.get('price') as string
-  
-  await supabaseAdmin
-    .from('system_settings')
-    .upsert({ key: 'subscription_price', value: price })
-    
+  await supabaseAdmin.from('system_settings').upsert({ key: 'subscription_price', value: price }) 
   revalidatePath('/admin')
 }
