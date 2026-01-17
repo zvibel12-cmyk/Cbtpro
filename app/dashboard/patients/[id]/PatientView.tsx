@@ -1,17 +1,24 @@
 'use client'
 
 import { useState } from 'react'
-import { User, Calendar, FileText, Brain, Phone, Mail, ArrowRight, Plus, Edit, CheckCircle, Clock } from 'lucide-react'
+import { User, Calendar, FileText, Brain, Phone, Mail, ArrowRight, Plus, Edit, CheckCircle, Clock, MapPin, info, Activity } from 'lucide-react'
 import Link from 'next/link'
 import PermissionsPanel from './PermissionsPanel'
 
 export default function PatientView({ patient, futureAppointments, notes, journals, settings, stats, patientId }: any) {
   const [activeTab, setActiveTab] = useState('appointments')
 
+  // חישוב גיל (אם יש תאריך לידה)
+  const calculateAge = (birthDate: string) => {
+    if (!birthDate) return 'לא הוזן';
+    const diff = Date.now() - new Date(birthDate).getTime();
+    return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
+  }
+
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-20">
       
-      {/* כותרת עליונה - מותאמת מובייל */}
+      {/* כותרת עליונה */}
       <div className="bg-white p-4 md:p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start gap-4">
         <div className="flex gap-4 w-full md:w-auto">
           <Link href="/dashboard/patients" className="p-2 h-10 w-10 flex flex-shrink-0 items-center justify-center bg-slate-50 rounded-full hover:bg-slate-100 transition text-slate-500">
@@ -35,67 +42,97 @@ export default function PatientView({ patient, futureAppointments, notes, journa
         </button>
       </div>
 
-      {/* סרגל לשוניות גלילה למובייל */}
+      {/* סרגל לשוניות */}
       <div className="overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0">
         <div className="flex gap-2 bg-white p-1 rounded-xl border border-slate-200 w-max md:w-fit shadow-sm">
-          <button 
-            onClick={() => setActiveTab('appointments')}
-            className={`px-4 md:px-5 py-2.5 rounded-lg text-sm font-bold transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'appointments' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
-          >
-            <Calendar size={16}/> פגישות ויומן
-          </button>
-          <button 
-            onClick={() => setActiveTab('notes')}
-            className={`px-4 md:px-5 py-2.5 rounded-lg text-sm font-bold transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'notes' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
-          >
-            <FileText size={16}/> סיכומי פגישה
-          </button>
-          <button 
-            onClick={() => setActiveTab('journals')}
-            className={`px-4 md:px-5 py-2.5 rounded-lg text-sm font-bold transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'journals' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
-          >
-            <Brain size={16}/> יומנים ומשימות
-          </button>
+          <button onClick={() => setActiveTab('appointments')} className={`px-4 md:px-5 py-2.5 rounded-lg text-sm font-bold transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'appointments' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><Calendar size={16}/> פגישות ופרטים</button>
+          <button onClick={() => setActiveTab('notes')} className={`px-4 md:px-5 py-2.5 rounded-lg text-sm font-bold transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'notes' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><FileText size={16}/> סיכומי פגישה</button>
+          <button onClick={() => setActiveTab('journals')} className={`px-4 md:px-5 py-2.5 rounded-lg text-sm font-bold transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'journals' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><Brain size={16}/> יומנים ומשימות</button>
         </div>
       </div>
 
-      {/* --- לשונית 1: פגישות --- */}
+      {/* --- לשונית 1: פגישות ופרטים --- */}
       {activeTab === 'appointments' && (
-        <div className="space-y-6">
-           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-             <h3 className="font-bold text-slate-800 text-lg">פגישות עתידיות</h3>
-             <Link href={`/dashboard/schedule?patientId=${patientId}`} className="w-full md:w-auto bg-blue-600 text-white px-4 py-3 md:py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-lg shadow-blue-100">
-               <Plus size={18} /> קבע פגישה חדשה
-             </Link>
-           </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
            
-           {futureAppointments.length === 0 ? (
-             <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-8 md:p-10 text-center">
-               <Calendar className="mx-auto text-slate-300 mb-2 h-10 w-10"/>
-               <p className="text-slate-500 font-bold">אין פגישות עתידיות</p>
+           {/* עמודה ימנית: כרטיס המידע המלא (התוספת החשובה) */}
+           <div className="space-y-6">
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2 border-b pb-2">
+                  <User size={18} className="text-blue-600"/> פרטים אישיים
+                </h3>
+                <div className="space-y-4 text-sm">
+                   <div>
+                     <span className="text-slate-400 block text-xs">תעודת זהות</span>
+                     <span className="font-bold text-slate-800">{patient?.identity_number || '-'}</span>
+                   </div>
+                   <div className="grid grid-cols-2 gap-4">
+                     <div>
+                       <span className="text-slate-400 block text-xs">תאריך לידה</span>
+                       <span className="font-bold text-slate-800">{patient?.birth_date || '-'}</span>
+                     </div>
+                     <div>
+                       <span className="text-slate-400 block text-xs">גיל</span>
+                       <span className="font-bold text-slate-800">{calculateAge(patient?.birth_date)}</span>
+                     </div>
+                   </div>
+                   <div>
+                     <span className="text-slate-400 block text-xs">כתובת מגורים</span>
+                     <span className="font-bold text-slate-800 flex items-center gap-1">
+                       <MapPin size={14} className="text-slate-400"/> {patient?.address || '-'}
+                     </span>
+                   </div>
+                   <div>
+                     <span className="text-slate-400 block text-xs">איש קשר לחירום</span>
+                     <span className="font-bold text-slate-800">{patient?.emergency_contact || '-'}</span>
+                   </div>
+                   {patient?.background_summary && (
+                     <div className="bg-slate-50 p-3 rounded-lg mt-2">
+                       <span className="text-slate-400 block text-xs mb-1">רקע כללי / סיבת הפניה</span>
+                       <p className="text-slate-700 leading-relaxed">{patient.background_summary}</p>
+                     </div>
+                   )}
+                </div>
+              </div>
+           </div>
+
+           {/* עמודה שמאלית: פגישות */}
+           <div className="lg:col-span-2 space-y-6">
+             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+               <h3 className="font-bold text-slate-800 text-lg">ניהול יומן טיפולים</h3>
+               <Link href={`/dashboard/schedule?patientId=${patientId}`} className="w-full md:w-auto bg-blue-600 text-white px-4 py-3 md:py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-lg shadow-blue-100">
+                 <Plus size={18} /> קבע פגישה חדשה
+               </Link>
              </div>
-           ) : (
-             <div className="grid gap-4">
-               {futureAppointments.map((apt: any) => (
-                 <div key={apt.id} className="bg-white p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row md:items-center justify-between shadow-sm gap-4">
-                    <div className="flex items-center gap-4">
-                      <div className="bg-blue-50 text-blue-700 font-bold px-4 py-2 rounded-lg text-center border border-blue-100">
-                        <div className="text-sm">{new Date(apt.start_time).getDate()}</div>
-                        <div className="text-xs">{new Date(apt.start_time).toLocaleDateString('he-IL', {month:'short'})}</div>
-                      </div>
-                      <div>
-                        <div className="font-bold text-slate-800">פגישה טיפולית</div>
-                        <div className="text-sm text-slate-500 flex items-center gap-2">
-                           <Clock size={14}/> {new Date(apt.start_time).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}
-                           <span className="text-slate-300">|</span>
-                           {new Date(apt.start_time).toLocaleDateString('he-IL', {weekday:'long'})}
+             
+             {futureAppointments.length === 0 ? (
+               <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-8 text-center">
+                 <Calendar className="mx-auto text-slate-300 mb-2 h-10 w-10"/>
+                 <p className="text-slate-500 font-bold">אין פגישות עתידיות ביומן</p>
+               </div>
+             ) : (
+               <div className="grid gap-4">
+                 {futureAppointments.map((apt: any) => (
+                   <div key={apt.id} className="bg-white p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row md:items-center justify-between shadow-sm gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className="bg-blue-50 text-blue-700 font-bold px-4 py-2 rounded-lg text-center border border-blue-100">
+                          <div className="text-sm">{new Date(apt.start_time).getDate()}</div>
+                          <div className="text-xs">{new Date(apt.start_time).toLocaleDateString('he-IL', {month:'short'})}</div>
+                        </div>
+                        <div>
+                          <div className="font-bold text-slate-800">פגישה טיפולית</div>
+                          <div className="text-sm text-slate-500 flex items-center gap-2">
+                             <Clock size={14}/> {new Date(apt.start_time).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}
+                             <span className="text-slate-300">|</span>
+                             {new Date(apt.start_time).toLocaleDateString('he-IL', {weekday:'long'})}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                 </div>
-               ))}
-             </div>
-           )}
+                   </div>
+                 ))}
+               </div>
+             )}
+           </div>
         </div>
       )}
 
@@ -104,7 +141,6 @@ export default function PatientView({ patient, futureAppointments, notes, journa
         <div className="space-y-6">
            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
              <h3 className="font-bold text-slate-800 text-lg">תיעוד מפגשים</h3>
-             {/* תיקון: כפתור פעיל עם לינק */}
              <Link href={`/dashboard/patients/${patientId}/notes/new`} className="w-full md:w-auto bg-slate-900 text-white px-4 py-3 md:py-2 rounded-xl text-sm font-bold hover:bg-slate-800 transition flex items-center justify-center gap-2">
                <Plus size={18} /> הוסף סיכום פגישה
              </Link>
@@ -146,9 +182,7 @@ export default function PatientView({ patient, futureAppointments, notes, journa
       {/* --- לשונית 3: יומנים --- */}
       {activeTab === 'journals' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-           
            <div className="space-y-6">
-              {/* סטטיסטיקה - תצוגה מותאמת */}
               <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg">
                  <h4 className="font-bold opacity-90 text-sm mb-4">מדד התמדה (מהפגישה האחרונה)</h4>
                  <div className="flex items-end gap-2 mb-2">
@@ -163,19 +197,13 @@ export default function PatientView({ patient, futureAppointments, notes, journa
                    </div>
                  )}
               </div>
-
               <PermissionsPanel patientId={patientId} settings={settings} />
            </div>
 
            <div className="lg:col-span-2 space-y-4">
-              <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
-                 <Brain className="text-rose-500" /> דיווחים
-              </h3>
-
+              <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2"><Brain className="text-rose-500" /> דיווחים</h3>
               {journals.length === 0 ? (
-                <div className="text-center py-12 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                   <p className="text-slate-400">טרם מולאו יומנים.</p>
-                </div>
+                <div className="text-center py-12 bg-white rounded-2xl border border-slate-100 shadow-sm"><p className="text-slate-400">טרם מולאו יומנים.</p></div>
               ) : (
                 <div className="space-y-3">
                   {journals.map((journal: any) => (
@@ -188,12 +216,7 @@ export default function PatientView({ patient, futureAppointments, notes, journa
                              <span className="text-xs text-slate-400">{new Date(journal.created_at).toLocaleDateString('he-IL')}</span>
                           </div>
                        </div>
-                       <p className="text-sm text-slate-700 font-medium mb-1 line-clamp-2">
-                         {journal.situation}
-                       </p>
-                       <p className="text-xs text-slate-500 line-clamp-1">
-                         מחשבה: {journal.automatic_thoughts}
-                       </p>
+                       <p className="text-sm text-slate-700 font-medium mb-1 line-clamp-2">{journal.situation}</p>
                     </div>
                   ))}
                 </div>
@@ -201,7 +224,6 @@ export default function PatientView({ patient, futureAppointments, notes, journa
            </div>
         </div>
       )}
-
     </div>
   )
 }
